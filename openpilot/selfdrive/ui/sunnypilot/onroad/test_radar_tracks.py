@@ -1,3 +1,4 @@
+import types
 from types import SimpleNamespace
 
 from opendbc.car.structs import car
@@ -116,6 +117,22 @@ def test_source_kind_camera_objects_use_triangle(monkeypatch):
   )
 
   assert polygons == [(25, 3, 6, -90.0)]
+
+
+def test_status_legend_marks_camera_sources_in_display_order(monkeypatch):
+  monkeypatch.setattr(radar_tracks, "UnifiedLabel", lambda *args, **kwargs: types.SimpleNamespace(
+    set_text=lambda text: None, set_text_color=lambda color: None))
+  live_tracks = car.RadarData.new_message()
+  live_tracks.trackSources = [
+    {"startAddress": 0x210, "endAddress": 0x21F, "bus": 0, "trackCount": 2},
+    {"startAddress": 0x180, "endAddress": 0x1B9, "bus": 2, "trackCount": 1, "sourceKind": radar_tracks.SOURCE_KIND_CAMERA},
+  ]
+  status = radar_tracks.RadarTracksStatus()
+  status.update(live_tracks, valid=True, radar_mode=2)
+
+  # sorted by address: 180-1B9 (camera) first, then 210-21F (radar)
+  assert status._source_camera == (True, False)
+  assert status._source_count == 2
 
 
 def test_format_radar_tracks_columns_stacks_all_ranges_with_preferred_first():

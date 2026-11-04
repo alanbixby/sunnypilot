@@ -183,6 +183,7 @@ class RadarTracksStatus:
     self._status = ("", "none", "", "", "", "")
     self._status_colors: tuple[tuple[int, int, int], ...] = ()
     self._source_count = 0
+    self._source_camera: tuple[bool, ...] = ()
     self._layout_key: tuple[str, str, str, str, str, str, int] | None = None
     self._column_widths = [0, 36, 0, 0, 0, 0]
     self._width = 52
@@ -192,15 +193,15 @@ class RadarTracksStatus:
     if live_tracks.radarTracksAvailable and radar_mode != 2:
       status = ("", "radar detected\ntap to enable", "", "", "", "")
       status_colors = ()
-      source_count = 0
+      source_camera = ()
     else:
       status = format_radar_tracks_onroad_columns(live_tracks, v_ego) if valid else ("", "none", "", "", "", "")
       status_colors = (DBC_MOVING_COLOR, NEUTRAL_COLOR, DBC_UNKNOWN_COLOR, DBC_UNKNOWN_COLOR)
-      source_count = len(live_tracks.trackSources) if valid else 0
-    self._set_status(status, status_colors, source_count)
+      source_camera = tuple(is_camera_object_source(source) for source in sorted_radar_sources(live_tracks)) if valid else ()
+    self._set_status(status, status_colors, source_camera)
 
   def reset(self) -> None:
-    self._set_status(("", "none", "", "", "", ""), (), 0)
+    self._set_status(("", "none", "", "", "", ""), (), ())
 
   def handle_mouse(self, mouse_pos) -> bool:
     if self._settings_callback is None or not rl.check_collision_point_rec(mouse_pos, self._rect):
@@ -232,7 +233,7 @@ class RadarTracksStatus:
         for source_index in range(self._source_count):
           draw_radar_source_marker(
             rl.Vector2(x + 6, self._rect.y + 5 + marker_height * (source_index + 0.5)),
-            5.0, rl.Color(0, 255, 64, 255), source_index,
+            5.0, rl.Color(0, 255, 64, 255), source_index, camera_object=self._source_camera[source_index],
           )
         label_x += self.SOURCE_MARKER_WIDTH
         label_width -= self.SOURCE_MARKER_WIDTH
@@ -240,13 +241,14 @@ class RadarTracksStatus:
       x += width + (self.COLUMN_GAP if active_index < len(active_columns) - 1 else 0)
 
   def _set_status(self, status: tuple[str, str, str, str, str, str],
-                  status_colors: tuple[tuple[int, int, int], ...], source_count: int) -> None:
-    if status == self._status and status_colors == self._status_colors and source_count == self._source_count:
+                  status_colors: tuple[tuple[int, int, int], ...], source_camera: tuple[bool, ...]) -> None:
+    if status == self._status and status_colors == self._status_colors and source_camera == self._source_camera:
       return
 
     self._status = status
     self._status_colors = status_colors
-    self._source_count = source_count
+    self._source_camera = source_camera
+    self._source_count = len(source_camera)
     for label, text in zip(self._labels, status, strict=True):
       label.set_text(text)
     for label, color in zip(self._labels[2:], status_colors, strict=False):

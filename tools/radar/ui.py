@@ -636,6 +636,7 @@ class DisplaySource:
   endAddress: int
   bus: int
   trackCount: int
+  sourceKind: int = 0
 
 
 @dataclass(frozen=True)
@@ -1013,6 +1014,7 @@ def make_radar_snapshot(radar_data, track_signals: tuple[DisplayTrackSignals, ..
       endAddress=int(source.endAddress),
       bus=int(source.bus),
       trackCount=int(source.trackCount),
+      sourceKind=int(getattr(source, "sourceKind", 0)),
     ) for source in radar_data.trackSources),
     trackSignals=track_signals,
     rawSignals=raw_signals,
@@ -1023,7 +1025,7 @@ def make_radar_snapshot(radar_data, track_signals: tuple[DisplayTrackSignals, ..
 def source_name(start_address: int, end_address: int) -> str:
   spec = SPEC_BY_RANGE.get((start_address, end_address))
   if spec is not None:
-    return "CAMERA_OBJECTS_235_248" if spec.source_kind == "camera" else spec.name
+    return f"CAMERA_OBJECTS_{start_address:X}_{end_address:X}" if spec.source_kind == "camera" else spec.name
   research_spec = RESEARCH_SPEC_BY_RANGE.get((start_address, end_address))
   return research_spec.name if research_spec is not None else f"RADAR_{start_address:X}_{end_address:X}"
 
