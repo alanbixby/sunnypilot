@@ -61,7 +61,13 @@ def radar_track_source_index(track, sources) -> int:
   return 0
 
 
+SOURCE_KIND_CAMERA = 1
+
+
 def is_camera_object_source(source) -> bool:
+  if int(getattr(source, "sourceKind", 0)) == SOURCE_KIND_CAMERA:
+    return True
+  # opendbc builds that predate RadarTrackSource.sourceKind only publish 235-248 as a camera list
   return source.startAddress == RADAR_235_248.start_addr and source.endAddress == RADAR_235_248.end_addr
 
 

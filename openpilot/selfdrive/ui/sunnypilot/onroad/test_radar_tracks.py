@@ -81,6 +81,43 @@ def test_format_camera_objects_are_not_labeled_as_radar():
   assert format_radar_tracks_onroad_columns(live_tracks) == ("CAM 235-248", "3", "3", "0", "0", "")
 
 
+def test_format_source_kind_camera_objects_are_labeled_as_camera():
+  live_tracks = car.RadarData.new_message()
+  live_tracks.trackSources = [
+    {"startAddress": 0x180, "endAddress": 0x1B9, "bus": 1, "trackCount": 2, "sourceKind": radar_tracks.SOURCE_KIND_CAMERA},
+  ]
+  points = live_tracks.init("points", 2)
+  for point in points:
+    point.motionState = 2
+
+  assert format_radar_tracks_onroad_columns(live_tracks) == ("CAM 180-1B9", "2", "2", "0", "0", "")
+
+
+def test_source_kind_camera_objects_use_triangle(monkeypatch):
+  live_tracks = car.RadarData.new_message()
+  live_tracks.trackSources = [
+    {"startAddress": 0x238, "endAddress": 0x24F, "bus": 1, "trackCount": 1, "sourceKind": radar_tracks.SOURCE_KIND_CAMERA},
+  ]
+  point = live_tracks.init("points", 1)[0]
+  point.dRel = 25
+  point.yRel = 1
+  point.vRel = 2
+  point.motionState = radar_tracks.DBC_MOTION_MOVING
+  point.sourceAddress = 0x23B
+  point.sourceBus = 1
+  polygons = []
+  monkeypatch.setattr(
+    radar_tracks.rl, "draw_poly",
+    lambda center, sides, radius, rotation, color: polygons.append((center.x, sides, radius, rotation)),
+  )
+
+  radar_tracks.RadarTracks().draw_radar_tracks(
+    live_tracks, lambda d_rel, y_rel, z: (d_rel, 30), path_offset_z=1.2, track_size=6,
+  )
+
+  assert polygons == [(25, 3, 6, -90.0)]
+
+
 def test_format_radar_tracks_columns_stacks_all_ranges_with_preferred_first():
   live_tracks = car.RadarData.new_message()
   live_tracks.trackSources = [
